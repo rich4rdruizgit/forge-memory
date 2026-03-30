@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>forge-memory — Persistent Memory for AI Agents</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121a;
+  --bg-card: #16161f;
+  --bg-card-hover: #1e1e2a;
+  --bg-code: #0d0d14;
+  --border-dim: #2a2a3a;
+  --border-glow: #f59e0b33;
+  --text-primary: #e8e6e3;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --accent-amber: #f59e0b;
+  --accent-orange: #f97316;
+  --accent-ember: #ef4444;
+  --accent-gold: #fbbf24;
+  --gradient-fire: linear-gradient(135deg, #f59e0b, #f97316, #ef4444);
+  --gradient-ember: linear-gradient(135deg, #f59e0b55, #f9731644, #ef444433);
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+  --max-width: 960px;
+  --nav-height: 64px;
+}
+
+html { scroll-behavior: smooth; scroll-padding-top: calc(var(--nav-height) + 24px); }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent-amber); text-decoration: none; transition: color 0.2s; }
+a:hover { color: var(--accent-gold); }
+::selection { background: #f59e0b44; color: #fff; }
+
+/* NAV */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: var(--nav-height);
+  background: #0a0a0fdd;
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-bottom: 1px solid var(--border-dim);
+  z-index: 1000;
+  transition: border-color 0.3s;
+}
+.nav.scrolled { border-bottom-color: var(--border-glow); }
+.nav-inner {
+  max-width: var(--max-width); margin: 0 auto; padding: 0 24px;
+  height: 100%; display: flex; align-items: center; justify-content: space-between;
+}
+.nav-brand {
+  font-weight: 700; font-size: 1.1rem;
+  background: var(--gradient-fire);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.nav-links { display: flex; gap: 8px; list-style: none; }
+.nav-links a {
+  color: var(--text-secondary); font-size: 0.85rem; padding: 6px 12px;
+  border-radius: 6px; transition: all 0.2s;
+}
+.nav-links a:hover { color: var(--text-primary); background: #ffffff08; }
+
+/* LAYOUT */
+.container { max-width: var(--max-width); margin: 0 auto; padding: 0 24px; }
+section { padding: 80px 0; }
+.section-title {
+  font-size: 1.8rem; font-weight: 700; margin-bottom: 24px;
+  background: var(--gradient-fire);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+
+/* HERO */
+.hero {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  text-align: center; position: relative; overflow: hidden;
+  padding-top: var(--nav-height);
+}
+.hero-glow {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, #f59e0b15 0%, #f9731610 30%, transparent 70%);
+  pointer-events: none; animation: pulse 4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 1; transform: translate(-50%, -50%) scale(1.15); }
+}
+.hero-content { position: relative; z-index: 1; }
+.hero-icon { font-size: 4rem; margin-bottom: 16px; display: block; }
+.hero h1 {
+  font-size: clamp(2.5rem, 6vw, 4rem); font-weight: 800;
+  background: var(--gradient-fire);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 16px;
+}
+.hero .tagline {
+  font-size: clamp(1.1rem, 2.5vw, 1.4rem); color: var(--text-secondary);
+  max-width: 520px; margin: 0 auto 32px;
+}
+.hero-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 28px; border-radius: 10px; font-weight: 600;
+  font-size: 0.95rem; transition: all 0.3s; border: none; cursor: pointer;
+}
+.btn-primary {
+  background: var(--gradient-fire); color: #000;
+  box-shadow: 0 0 24px #f59e0b33;
+}
+.btn-primary:hover { box-shadow: 0 0 40px #f59e0b55; transform: translateY(-2px); color: #000; }
+.btn-secondary {
+  background: var(--bg-card); color: var(--text-primary);
+  border: 1px solid var(--border-dim);
+}
+.btn-secondary:hover { border-color: var(--accent-amber); transform: translateY(-2px); }
+
+/* PROBLEM / SOLUTION */
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+.split-card {
+  background: var(--bg-card); border: 1px solid var(--border-dim);
+  border-radius: 16px; padding: 32px;
+}
+.split-card h3 { font-size: 1.3rem; margin-bottom: 12px; }
+.split-card p { color: var(--text-secondary); font-size: 0.95rem; line-height: 1.8; }
+.split-card.problem { border-top: 3px solid var(--accent-ember); }
+.split-card.solution { border-top: 3px solid var(--accent-amber); }
+
+/* FLOW DIAGRAM */
+.flow {
+  display: flex; align-items: center; justify-content: center;
+  gap: 0; flex-wrap: wrap; padding: 32px 0;
+}
+.flow-node {
+  background: var(--bg-card); border: 1px solid var(--border-dim);
+  border-radius: 12px; padding: 16px 24px; text-align: center;
+  transition: all 0.3s; min-width: 120px;
+}
+.flow-node:hover { border-color: var(--accent-amber); transform: translateY(-2px); }
+.flow-node .icon { font-size: 1.5rem; display: block; margin-bottom: 4px; }
+.flow-node .label { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+.flow-node .sub { font-size: 0.75rem; color: var(--text-muted); }
+.flow-arrow {
+  font-size: 1.2rem; color: var(--accent-amber); padding: 0 12px;
+  animation: arrow-pulse 2s ease-in-out infinite;
+}
+@keyframes arrow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* FEATURES GRID */
+.features-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+.feature-card {
+  background: var(--bg-card); border: 1px solid var(--border-dim);
+  border-radius: 14px; padding: 24px;
+  transition: all 0.3s;
+}
+.feature-card:hover {
+  border-color: var(--accent-amber); transform: translateY(-3px);
+  box-shadow: 0 8px 32px #f59e0b11;
+}
+.feature-card .icon { font-size: 1.6rem; margin-bottom: 8px; display: block; }
+.feature-card h4 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+.feature-card p { color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; }
+
+/* QUICK START */
+.quickstart-block {
+  background: var(--bg-code); border: 1px solid var(--border-dim);
+  border-radius: 14px; padding: 28px 32px; position: relative; overflow: hidden;
+}
+.quickstart-block::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: var(--gradient-fire);
+}
+.quickstart-block pre {
+  font-family: var(--font-mono); font-size: 0.9rem; line-height: 2;
+  color: var(--text-primary); overflow-x: auto;
+}
+.quickstart-block .comment { color: var(--text-muted); }
+.quickstart-block .cmd { color: var(--accent-amber); }
+
+/* TOOLS TABLE */
+.tools-table-wrap {
+  background: var(--bg-card); border: 1px solid var(--border-dim);
+  border-radius: 14px; overflow: hidden;
+}
+.tools-table {
+  width: 100%; border-collapse: collapse; font-size: 0.88rem;
+}
+.tools-table thead { background: var(--bg-secondary); }
+.tools-table th {
+  text-align: left; padding: 12px 16px; font-weight: 600;
+  color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.tools-table td { padding: 10px 16px; border-top: 1px solid var(--border-dim); }
+.tools-table tr:hover td { background: #ffffff04; }
+.tools-table .tool-name {
+  font-family: var(--font-mono); font-size: 0.82rem; color: var(--accent-amber);
+  white-space: nowrap;
+}
+.tools-table .tool-desc { color: var(--text-secondary); }
+.tools-table .group-label {
+  background: var(--bg-secondary); font-weight: 700; font-size: 0.78rem;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent-amber);
+  padding: 8px 16px;
+}
+
+/* ROADMAP */
+.roadmap {
+  display: flex; gap: 0; align-items: stretch; position: relative;
+}
+.roadmap::before {
+  content: ''; position: absolute; top: 50%; left: 0; right: 0;
+  height: 2px; background: var(--border-dim); z-index: 0;
+}
+.roadmap-step {
+  flex: 1; text-align: center; position: relative; z-index: 1;
+  padding: 0 16px;
+}
+.roadmap-dot {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--border-dim); border: 3px solid var(--bg-primary);
+  margin: 0 auto 12px; transition: all 0.3s;
+}
+.roadmap-step.active .roadmap-dot {
+  background: var(--accent-amber); box-shadow: 0 0 16px #f59e0b66;
+}
+.roadmap-step h4 { font-size: 0.95rem; margin-bottom: 4px; }
+.roadmap-step p { font-size: 0.82rem; color: var(--text-muted); }
+.roadmap-step.active h4 { color: var(--accent-amber); }
+
+/* FOOTER */
+.footer {
+  border-top: 1px solid var(--border-dim); padding: 32px 0;
+  text-align: center; color: var(--text-muted); font-size: 0.85rem;
+}
+.footer a { color: var(--accent-amber); }
+
+/* ANIMATIONS */
+.fade-in {
+  opacity: 0; transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.fade-in.visible { opacity: 1; transform: translateY(0); }
+
+/* RESPONSIVE */
+@media (max-width: 700px) {
+  .split { grid-template-columns: 1fr; gap: 16px; }
+  .flow { gap: 8px; }
+  .flow-arrow { padding: 0 6px; font-size: 1rem; }
+  .flow-node { padding: 12px 16px; min-width: 80px; }
+  .nav-links { display: none; }
+  section { padding: 56px 0; }
+  .roadmap { flex-direction: column; gap: 24px; }
+  .roadmap::before { display: none; }
+  .tools-table { font-size: 0.82rem; }
+  .tools-table td, .tools-table th { padding: 8px 12px; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav" id="nav">
+  <div class="nav-inner">
+    <span class="nav-brand">forge-memory</span>
+    <ul class="nav-links">
+      <li><a href="#problem">Why</a></li>
+      <li><a href="#how">How</a></li>
+      <li><a href="#features">Features</a></li>
+      <li><a href="#install">Install</a></li>
+      <li><a href="#tools">Tools</a></li>
+      <li><a href="https://github.com/nicobailon/forge-memory" target="_blank">GitHub</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-content">
+    <span class="hero-icon">&#x1f525;</span>
+    <h1>forge-memory</h1>
+    <p class="tagline">Persistent memory for AI agents. Decisions, bugs, patterns, and discoveries that survive across sessions.</p>
+    <div class="hero-buttons">
+      <a href="#install" class="btn btn-primary">Install</a>
+      <a href="https://github.com/nicobailon/forge-memory" target="_blank" class="btn btn-secondary">GitHub</a>
+    </div>
+  </div>
+</section>
+
+<!-- PROBLEM & SOLUTION -->
+<section id="problem">
+  <div class="container fade-in">
+    <div class="split">
+      <div class="split-card problem">
+        <h3>The Problem</h3>
+        <p>AI agents forget everything between sessions. Every new conversation starts from zero. You re-explain the same decisions, the same architecture, the same conventions. Context is lost, mistakes repeat, and knowledge evaporates the moment a session ends.</p>
+      </div>
+      <div class="split-card solution">
+        <h3>The Solution</h3>
+        <p>forge-memory is a persistent memory layer for AI agents. It stores observations &mdash; decisions, bugs, patterns, discoveries &mdash; in a local SQLite database with full-text search. Agents save and retrieve knowledge via MCP tools. Your context survives across sessions.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="container fade-in">
+    <h2 class="section-title" style="text-align:center;">How It Works</h2>
+    <div class="flow">
+      <div class="flow-node">
+        <span class="icon">&#x1f916;</span>
+        <span class="label">AI Agent</span>
+        <span class="sub">Claude, etc.</span>
+      </div>
+      <span class="flow-arrow">&#x2194;</span>
+      <div class="flow-node">
+        <span class="icon">&#x1f50c;</span>
+        <span class="label">MCP</span>
+        <span class="sub">stdio transport</span>
+      </div>
+      <span class="flow-arrow">&#x2194;</span>
+      <div class="flow-node" style="border-color: var(--accent-amber);">
+        <span class="icon">&#x1f525;</span>
+        <span class="label">forge-memory</span>
+        <span class="sub">MCP server</span>
+      </div>
+      <span class="flow-arrow">&#x2194;</span>
+      <div class="flow-node">
+        <span class="icon">&#x1f4be;</span>
+        <span class="label">SQLite</span>
+        <span class="sub">FTS5 index</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="container fade-in">
+    <h2 class="section-title" style="text-align:center;">Key Features</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <span class="icon">&#x1f504;</span>
+        <h4>Semantic Upsert</h4>
+        <p>The <code>topic_key</code> field prevents duplicates &mdash; saving to the same topic updates the existing observation instead of creating a new one.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#x1f50d;</span>
+        <h4>FTS5 Search</h4>
+        <p>Full-text search powered by SQLite FTS5 with BM25 scoring, recency ranking, and synonym expansion.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#x1f3f7;&#xfe0f;</span>
+        <h4>Auto-Tagging</h4>
+        <p>Keywords are automatically extracted and stored as tags, making observations discoverable without manual effort.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#x1f578;&#xfe0f;</span>
+        <h4>Knowledge Graph</h4>
+        <p>Typed relations between observations &mdash; extends, contradicts, replaces, depends_on &mdash; with traversal up to depth 3.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#x1f4cb;</span>
+        <h4>Session Tracking</h4>
+        <p>Open and close sessions with structured summaries so the next session picks up exactly where you left off.</p>
+      </div>
+      <div class="feature-card">
+        <span class="icon">&#x2692;&#xfe0f;</span>
+        <h4>Forge Integration</h4>
+        <p>Extract structured knowledge from spec and verify documents, search grouped by type, and get full feature context.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- QUICK START -->
+<section id="install">
+  <div class="container fade-in">
+    <h2 class="section-title" style="text-align:center;">Quick Start</h2>
+    <div class="quickstart-block">
+      <pre><span class="comment"># Install</span>
+<span class="cmd">uv pip install forge-memory</span>
+
+<span class="comment"># Add to Claude Code</span>
+<span class="cmd">claude mcp add forge-memory -- python -m forge_memory serve</span>
+
+<span class="comment"># Restart Claude Code — done.</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- TOOLS TABLE -->
+<section id="tools">
+  <div class="container fade-in">
+    <h2 class="section-title" style="text-align:center;">Tools at a Glance</h2>
+    <div class="tools-table-wrap">
+      <table class="tools-table">
+        <thead>
+          <tr><th>Tool</th><th>Description</th></tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="2" class="group-label">Core</td></tr>
+          <tr><td class="tool-name">forge_mem_save</td><td class="tool-desc">Create or upsert an observation by topic_key</td></tr>
+          <tr><td class="tool-name">forge_mem_search</td><td class="tool-desc">Full-text search with BM25 + recency ranking</td></tr>
+          <tr><td class="tool-name">forge_mem_get</td><td class="tool-desc">Retrieve full observation content by ID</td></tr>
+          <tr><td class="tool-name">forge_mem_update</td><td class="tool-desc">Partial update of title, content, type, or tags</td></tr>
+          <tr><td class="tool-name">forge_mem_delete</td><td class="tool-desc">Soft-delete an observation (audit trail preserved)</td></tr>
+          <tr><td class="tool-name">forge_mem_context</td><td class="tool-desc">Recent observations for a project</td></tr>
+          <tr><td class="tool-name">forge_mem_synonym_add</td><td class="tool-desc">Add synonym pairs for query expansion</td></tr>
+
+          <tr><td colspan="2" class="group-label">Sessions</td></tr>
+          <tr><td class="tool-name">forge_mem_session_start</td><td class="tool-desc">Open a new session record</td></tr>
+          <tr><td class="tool-name">forge_mem_session_end</td><td class="tool-desc">Close a session with a summary</td></tr>
+          <tr><td class="tool-name">forge_mem_session_summary</td><td class="tool-desc">Atomic open + close in one call</td></tr>
+
+          <tr><td colspan="2" class="group-label">Relations</td></tr>
+          <tr><td class="tool-name">forge_mem_relate</td><td class="tool-desc">Create a typed relation between two observations</td></tr>
+          <tr><td class="tool-name">forge_mem_related</td><td class="tool-desc">Graph traversal up to depth 3</td></tr>
+
+          <tr><td colspan="2" class="group-label">Forge</td></tr>
+          <tr><td class="tool-name">forge_mem_knowledge_extract</td><td class="tool-desc">Parse spec/verify markdown into typed candidates</td></tr>
+          <tr><td class="tool-name">forge_mem_knowledge_search</td><td class="tool-desc">Search grouped by type: decisions, patterns, lessons</td></tr>
+          <tr><td class="tool-name">forge_mem_feature_context</td><td class="tool-desc">Full context for a feature slug</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ROADMAP -->
+<section id="roadmap">
+  <div class="container fade-in">
+    <h2 class="section-title" style="text-align:center;">Roadmap</h2>
+    <div class="roadmap">
+      <div class="roadmap-step active">
+        <div class="roadmap-dot"></div>
+        <h4>v1.0 &mdash; FTS5</h4>
+        <p>Full-text search, BM25 ranking, synonym expansion, knowledge graph</p>
+      </div>
+      <div class="roadmap-step">
+        <div class="roadmap-dot"></div>
+        <h4>v2.0 &mdash; Embeddings</h4>
+        <p>Local ONNX embeddings for semantic similarity search</p>
+      </div>
+      <div class="roadmap-step">
+        <div class="roadmap-dot"></div>
+        <h4>v3.0 &mdash; External Backends</h4>
+        <p>Qdrant, pgvector, and cloud-hosted vector stores</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="container">
+    <p>MIT License &middot; <a href="https://github.com/nicobailon/forge-memory" target="_blank">GitHub</a></p>
+  </div>
+</footer>
+
+<script>
+// Nav scroll effect
+const nav = document.getElementById('nav');
+window.addEventListener('scroll', () => {
+  nav.classList.toggle('scrolled', window.scrollY > 40);
+}, { passive: true });
+
+// Fade-in on scroll
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.15 });
+document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
